@@ -1,0 +1,13 @@
+# General
+node_modules/
+.env
+__pycache__/
+env/
+*.sqlite3
+
+# React
+frontend/build/
+
+# Python
+backend/__pycache__/
+backend/env/
