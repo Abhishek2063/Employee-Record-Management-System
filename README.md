@@ -127,7 +127,5 @@ This project is licensed under the MIT License.
 Senior Software Engineer
 GitHub: [@Abhishek2063](https://github.com/Abhishek2063)
 
-```
-
 ---
 
