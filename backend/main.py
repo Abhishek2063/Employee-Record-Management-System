@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 
-from app.routes import auth_route
+from app.routes import auth_route,user_route
 from app.core.database import Base, engine
 from app.models import user, attendance_session
 
@@ -23,6 +23,8 @@ app = FastAPI(
 
 # Include routers
 app.include_router(auth_route.router, prefix="/auth", tags=["Auth"])
+app.include_router(user_route.router, prefix="/user", tags=["User"])
+
 
 # Root route
 @app.get("/")
