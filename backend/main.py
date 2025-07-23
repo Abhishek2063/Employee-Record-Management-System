@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 
 from app.routes import auth_route
@@ -7,19 +8,51 @@ from app.models import user, attendance_session
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # This runs on startup
+    # Startup tasks
     Base.metadata.create_all(bind=engine)
     yield
-    # This runs on shutdown (optional)
-    # Example: db session close, cache clear etc.
+    # Shutdown tasks (if needed)
+    # Example: close DB connections, clean up cache, etc.
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Employee Record Management API",
+    description="API for managing employee records and attendance with role-based access.",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
+# Include routers
 app.include_router(auth_route.router, prefix="/auth", tags=["Auth"])
 
+# Root route
 @app.get("/")
 def read_root():
-    return {"message": "Employee Record Management API"}
+    return {"message": "Welcome to the Employee Record Management API"}
+
+# Swagger Bearer Token Authorization
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT"
+        }
+    }
+    for path in openapi_schema["paths"].values():
+        for operation in path.values():
+            operation.setdefault("security", [{"BearerAuth": []}])
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 # Entry point
 if __name__ == "__main__":

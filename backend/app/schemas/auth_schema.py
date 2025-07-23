@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator,ConfigDict
 import re
+from enum import Enum
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -25,3 +26,17 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    
+class UserRole(str, Enum):
+    super_admin = "super_admin"
+    admin = "admin"
+    employee = "employee"
+    
+
+class UserSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: EmailStr
+    role: UserRole
