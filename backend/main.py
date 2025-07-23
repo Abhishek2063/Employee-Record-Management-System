@@ -2,9 +2,10 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 
-from app.routes import auth_route,user_route
+from app.routes import auth_route,user_route, attendance_routes
 from app.core.database import Base, engine
 from app.models import user, attendance_session
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,10 +22,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add CORS (optional)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include routers
 app.include_router(auth_route.router, prefix="/auth", tags=["Auth"])
 app.include_router(user_route.router, prefix="/user", tags=["User"])
-
+app.include_router(attendance_routes.router)
 
 # Root route
 @app.get("/")
