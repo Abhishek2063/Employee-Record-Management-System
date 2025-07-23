@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.attendance_service import punch_in, handle_punch_out
 from app.middlewares.auth import get_current_user
 from app.models.user import User
-from app.controllers.attendance_controller import get_user_attendance
+from app.controllers.attendance_controller import get_user_attendance,get_all_attendance
+from typing import Optional
+from datetime import date
+from app.schemas.user_schema import UserSchema
+
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
 
@@ -32,3 +36,10 @@ def get_my_attendance(
     current_user: User = Depends(get_current_user)
 ):
     return get_user_attendance(current_user.id, db, date, month, year)
+
+@router.get("/", summary="Get all users' attendance")
+def get_attendance_report(
+    selected_date: Optional[date] = Query(None),
+    current_user: UserSchema = Depends(get_current_user)
+):
+    return get_all_attendance(selected_date, current_user)

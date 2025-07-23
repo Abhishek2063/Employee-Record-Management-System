@@ -1,10 +1,15 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,joinedload
+from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 from datetime import date, datetime
 from app.models.attendance_session import AttendanceSession
 from app.utils.response import error_response, success_response
 from fastapi import HTTPException
 from datetime import datetime, date as date_type
 from collections import defaultdict
+from app.core.database import get_db
+from app.models.user import User
 
 def punch_in(user_id: int, db: Session):
     today = date.today()
@@ -123,3 +128,60 @@ def fetch_user_attendance(user_id: int, db: Session, date=None, month=None, year
     # Sort by date descending
     response.sort(key=lambda x: x["date"], reverse=True)
     return response
+
+def fetch_all_attendance(selected_date: Optional[date]):
+        session = next(get_db())
+
+        if not selected_date:
+            selected_date = date.today()
+
+        users = session.query(User).options(
+            joinedload(User.attendance_sessions)
+        ).all()
+
+        results = []
+        for user in users:
+            sessions = [
+                s for s in user.attendance_sessions
+                if s.date == selected_date
+            ]
+
+            if sessions:
+                punch_ins = [s.punch_in for s in sessions]
+                punch_outs = [s.punch_out for s in sessions if s.punch_out]
+
+                first_punch_in = min(punch_ins) if punch_ins else None
+                last_punch_out = max(punch_outs) if punch_outs else None
+
+                total_duration = (
+                    (last_punch_out - first_punch_in).total_seconds() / 3600
+                    if first_punch_in and last_punch_out else 0
+                )
+
+                session_data = [
+                    {
+                        "punch_in": s.punch_in,
+                        "punch_out": s.punch_out,
+                        "duration": s.duration,
+                    }
+                    for s in sessions
+                ]
+            else:
+                first_punch_in = None
+                last_punch_out = None
+                total_duration = None
+                session_data = []
+
+            results.append({
+                "user_id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "date": selected_date,
+                "first_punch_in": first_punch_in,
+                "last_punch_out": last_punch_out,
+                "total_duration": round(total_duration, 2) if total_duration is not None else None,
+                "sessions": session_data
+            })
+
+        session.close()
+        return results
