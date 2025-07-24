@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 // Create axios instance
 const api = axios.create({
@@ -10,7 +10,7 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to attach the token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -19,12 +19,10 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle auth errors
+// Response interceptor to handle unauthorized access
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -33,79 +31,67 @@ api.interceptors.response.use(
       localStorage.removeItem('userData');
       window.location.href = '/login';
     }
-    return Promise.reject(error);
+    return Promise.reject(error.response?.data || { message: 'Something went wrong' });
   }
 );
 
-// Auth API calls
+//
+// 🔐 AUTH APIs
+//
 export const authAPI = {
   login: async (credentials) => {
-    try {
-      const response = await api.post('/auth/login', credentials);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Login failed' };
-    }
+    const response = await api.post('/auth/login', credentials);
+    return response.data;
   },
-  
+
+  getProfile: async () => {
+    const response = await api.get('/auth/me');
+    return response.data;
+  },
+
   logout: async () => {
     try {
       await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userData');
     }
-  }
+  },
 };
 
-// Time tracking API calls
-export const timeAPI = {
+//
+// 👤 USER APIs
+//
+export const userAPI = {
+  getUsers: async (params = {}) => {
+    const response = await api.get('/user', { params });
+    return response.data;
+  },
+};
+
+//
+// ⏱️ ATTENDANCE APIs
+//
+export const attendanceAPI = {
   punchIn: async () => {
-    try {
-      const response = await api.post('/time/punch-in');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Punch in failed' };
-    }
+    const response = await api.post('/attendance/punch-in');
+    return response.data;
   },
-  
+
   punchOut: async () => {
-    try {
-      const response = await api.post('/time/punch-out');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Punch out failed' };
-    }
+    const response = await api.post('/attendance/punch-out');
+    return response.data;
   },
-  
-  getTimeRecords: async () => {
-    try {
-      const response = await api.get('/time/records');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch time records' };
-    }
+
+  getMyAttendance: async (params = {}) => {
+    const response = await api.get('/attendance/me', { params });
+    return response.data;
   },
-  
-  getUserTimeDetails: async (userId) => {
-    try {
-      const response = await api.get(`/time/user/${userId}/details`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch user time details' };
-    }
+
+  getAllAttendance: async (params = {}) => {
+    const response = await api.get('/attendance', { params });
+    return response.data;
   },
-  
-  getCurrentStatus: async () => {
-    try {
-      const response = await api.get('/time/status');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch current status' };
-    }
-  }
 };
 
 export default api;

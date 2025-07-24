@@ -58,10 +58,16 @@ const Login = () => {
 
     try {
       const response = await authAPI.login(formData);
+      if (!response || !response?.data?.access_token) {
+        throw new Error('Invalid login response. Please try again.');
+      }
       
       // Store auth data
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('userData', JSON.stringify(response.user));
+      localStorage.setItem('authToken', response?.data?.access_token);
+
+      const userDataResponse = await authAPI.getProfile();
+
+      localStorage.setItem('userData', JSON.stringify(userDataResponse?.data || {}));
       
       // Redirect to dashboard
       navigate('/dashboard');

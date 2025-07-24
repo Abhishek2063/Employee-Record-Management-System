@@ -12,8 +12,11 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     return login_controller(data, db)
 
 @router.get("/me")
-def me(user: User = Depends(get_current_user)):
-    return get_me(user)
+def me(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return get_me(user, db)
 
 @router.post("/logout")
 def logout(

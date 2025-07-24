@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.schemas.auth_schema import LoginRequest
-from app.services.auth_service import authenticate_user, generate_and_return_token
+from app.services.auth_service import authenticate_user, generate_and_return_token, get_today_attendance
 from app.core.database import SessionLocal
 from app.utils.response import success_response, error_response
 from app.middlewares.auth import get_current_user
@@ -23,8 +23,10 @@ def login_controller(login_data: LoginRequest, db: Session):
     token = generate_and_return_token(user,db)
     return success_response("Login successful", token, 200)
 
-def get_me(user: User):
+def get_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user_data = UserSchema.from_orm(user)
+    attendance = get_today_attendance(db, user.id)
+    user_data.today_attendance = attendance
     return success_response("User details fetched successfully", user_data.dict(), 200)
 
 def logout_user(user: User, db: Session):

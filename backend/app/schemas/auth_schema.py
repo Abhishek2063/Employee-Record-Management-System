@@ -1,6 +1,8 @@
 from pydantic import BaseModel, EmailStr, field_validator,ConfigDict
 import re
 from enum import Enum
+from typing import Optional
+from datetime import datetime
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -33,10 +35,17 @@ class UserRole(str, Enum):
     employee = "employee"
     
 
-class UserSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class TodayAttendanceSchema(BaseModel):
+    first_punch_in: Optional[datetime] = None
+    last_punch_out: Optional[datetime] = None
+    next_action: str
 
+class UserSchema(BaseModel):
     id: int
     name: str
     email: EmailStr
     role: UserRole
+    today_attendance: Optional[TodayAttendanceSchema] = None
+
+    class Config:
+        from_attributes = True
