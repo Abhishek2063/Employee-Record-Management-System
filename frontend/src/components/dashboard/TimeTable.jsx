@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Table, Button, Spinner, Alert, Card, Row, Col, Form } from "react-bootstrap";
-import { Calendar, Clock, User, Mail } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import TimeDetailsModal from "./TimeDetailsModal";
 import { attendanceAPI } from "../../services/api";
 
@@ -58,14 +58,17 @@ const TimeTable = ({ refreshTrigger }) => {
     return `${wholeHours}h ${minutes}m`;
   };
 
-  const formatTime = (timeString) => {
-    if (!timeString) return "-";
-    return new Date(timeString).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+const formatTime = (timeString) => {
+  if (!timeString) return "-";
+  // Parse as UTC and convert to local time
+  const date = new Date(timeString + "Z");
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
 
   const handleDateChange = (e) => {
     setSelectedDate(e.target.value);

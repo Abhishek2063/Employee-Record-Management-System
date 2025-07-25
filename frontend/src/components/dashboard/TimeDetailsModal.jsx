@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal, Table, Spinner, Alert, Badge, Card, Row, Col } from 'react-bootstrap';
-import { Clock, Calendar, User, Mail } from 'lucide-react';
+import { Clock, Calendar } from 'lucide-react';
 // import { timeAPI } from '../../services/api';
 
 const TimeDetailsModal = ({ show, user, onHide }) => {
@@ -8,15 +8,17 @@ const TimeDetailsModal = ({ show, user, onHide }) => {
   const [error, setError] = useState('');
  
 
-  const formatTime = (timeString) => {
-    if (!timeString) return '-';
-    return new Date(timeString).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
+const formatTime = (timeString) => {
+  if (!timeString) return "-";
+  // Parse as UTC and convert to local time
+  const date = new Date(timeString + "Z");
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
