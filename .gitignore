@@ -11,3 +11,5 @@ frontend/build/
 # Python
 backend/__pycache__/
 backend/env/
+
+backend/exports

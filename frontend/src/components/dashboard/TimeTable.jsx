@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Table, Button, Spinner, Alert, Card, Row, Col, Form } from "react-bootstrap";
+import {
+  Table,
+  Button,
+  Spinner,
+  Alert,
+  Card,
+  Row,
+  Col,
+  Form,
+} from "react-bootstrap";
 import { Calendar, Clock } from "lucide-react";
 import TimeDetailsModal from "./TimeDetailsModal";
 import { attendanceAPI } from "../../services/api";
@@ -10,7 +19,10 @@ const TimeTable = ({ refreshTrigger }) => {
   const [error, setError] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [exportFormat, setExportFormat] = useState("csv");
 
   useEffect(() => {
     fetchTimeRecords();
@@ -23,15 +35,15 @@ const TimeTable = ({ refreshTrigger }) => {
   const fetchTimeRecords = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const date = new Date(selectedDate);
       const params = {
         date: date.getDate(),
         month: date.getMonth() + 1, // JavaScript months are 0-indexed
-        year: date.getFullYear()
+        year: date.getFullYear(),
       };
-      
+
       const response = await attendanceAPI.getMyAttendance(params);
       setRecords(response.data || []);
     } catch (error) {
@@ -58,20 +70,40 @@ const TimeTable = ({ refreshTrigger }) => {
     return `${wholeHours}h ${minutes}m`;
   };
 
-const formatTime = (timeString) => {
-  if (!timeString) return "-";
-  // Parse as UTC and convert to local time
-  const date = new Date(timeString + "Z");
-  return date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
-};
-
+  const formatTime = (timeString) => {
+    if (!timeString) return "-";
+    // Parse as UTC and convert to local time
+    const date = new Date(timeString + "Z");
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   const handleDateChange = (e) => {
     setSelectedDate(e.target.value);
+  };
+
+  const handleDownload = async () => {
+    try {
+      const response = await attendanceAPI.downloadMyAttendance({
+        format: exportFormat,
+        selected_date: selectedDate,
+      });
+
+      if (response?.data?.file_url) {
+        const downloadUrl = process.env.REACT_APP_API_BASE_URL + response.data.file_url;
+        window.open(downloadUrl, "_blank"); // or use link to force download
+      } else {
+        alert("Download failed. File URL not received.");
+      }
+    } catch (error) {
+      console.error("Download failed", error);
+      alert(
+        "Download failed: " + (error.response?.data?.detail || error.message)
+      );
+    }
   };
 
   if (loading) {
@@ -106,18 +138,39 @@ const formatTime = (timeString) => {
                 value={selectedDate}
                 onChange={handleDateChange}
                 className="form-control-sm"
-                style={{ minWidth: '150px' }}
+                style={{ minWidth: "150px" }}
               />
+            </Col>
+            <Col xs="auto">
+              <div className="d-flex align-items-center">
+                <Form.Select
+                  size="sm"
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  className="me-2"
+                >
+                  <option value="csv">CSV</option>
+                  <option value="excel">Excel</option>
+                  <option value="pdf">PDF</option>
+                </Form.Select>
+                <Button variant="success" size="sm" onClick={handleDownload}>
+                  Download
+                </Button>
+              </div>
             </Col>
           </Row>
         </Card.Header>
-        
+
         <Card.Body className="p-0">
           {error && records.length === 0 && (
             <Alert variant="danger" className="mb-0 rounded-0">
               <div className="d-flex justify-content-between align-items-center">
                 <span>{error}</span>
-                <Button variant="outline-danger" size="sm" onClick={fetchTimeRecords}>
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={fetchTimeRecords}
+                >
                   Try Again
                 </Button>
               </div>
@@ -131,7 +184,6 @@ const formatTime = (timeString) => {
                   <th className="px-4 py-3">First Punch In</th>
                   <th className="px-4 py-3">Last Punch Out</th>
                   <th className="px-4 py-3">Total Hours</th>
-                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-center">Actions</th>
                 </tr>
               </thead>
@@ -143,16 +195,17 @@ const formatTime = (timeString) => {
                         <Calendar size={48} className="text-muted mb-3" />
                         <h6 className="text-muted mb-2">No Records Found</h6>
                         <p className="text-muted mb-3">
-                          No time records available for {new Date(selectedDate).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
+                          No time records available for{" "}
+                          {new Date(selectedDate).toLocaleDateString("en-US", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
                           })}
                         </p>
-                        <Button 
-                          variant="outline-primary" 
-                          size="sm" 
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
                           onClick={fetchTimeRecords}
                         >
                           Refresh Data
@@ -190,24 +243,7 @@ const formatTime = (timeString) => {
                           {formatTotalHours(record.total_hours)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`badge fs-6 px-3 py-2 ${
-                            record.status === "active" || record.isPunchedIn
-                              ? "bg-success"
-                              : "bg-secondary"
-                          }`}
-                        >
-                          {record.status === "active" || record.isPunchedIn ? (
-                            <>
-                              <span className="me-1">●</span>
-                              Active
-                            </>
-                          ) : (
-                            "Inactive"
-                          )}
-                        </span>
-                      </td>
+
                       <td className="px-4 py-3 text-center">
                         <Button
                           variant="outline-primary"
@@ -225,16 +261,17 @@ const formatTime = (timeString) => {
             </Table>
           </div>
         </Card.Body>
-        
+
         {records.length > 0 && (
           <Card.Footer className="bg-light text-muted">
             <small>
-              Showing {records.length} record{records.length !== 1 ? 's' : ''} for{' '}
-              {new Date(selectedDate).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              Showing {records.length} record{records.length !== 1 ? "s" : ""}{" "}
+              for{" "}
+              {new Date(selectedDate).toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </small>
           </Card.Footer>

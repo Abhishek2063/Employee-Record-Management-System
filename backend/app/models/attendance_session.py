@@ -18,3 +18,12 @@ class AttendanceSession(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="attendance_sessions")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "punch_in": self.punch_in,
+            "punch_out": self.punch_out,
+            "date": self.date,
+        }

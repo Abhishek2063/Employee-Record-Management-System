@@ -6,6 +6,7 @@ from app.routes import auth_route,user_route, attendance_routes
 from app.core.database import Base, engine
 from app.models import user, attendance_session
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,6 +22,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Serve static files for download
+app.mount("/exports", StaticFiles(directory="exports"), name="exports")
 
 # Add CORS (optional)
 app.add_middleware(
