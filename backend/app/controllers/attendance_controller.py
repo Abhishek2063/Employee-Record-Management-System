@@ -42,8 +42,6 @@ def get_all_attendance(selected_date: Optional[date], current_user: UserSchema):
     except Exception as e:
         return error_response(str(e), status_code=500)
 
-
-
 def export_my_attendance_controller(format: str, selected_date: str, db: Session, current_user: User):
     try:
         selected = datetime.strptime(selected_date, "%Y-%m-%d").date() if selected_date else date.today()

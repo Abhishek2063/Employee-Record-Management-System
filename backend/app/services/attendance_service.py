@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from collections import defaultdict
 from app.core.database import get_db
 from app.models.user import User
+from pytz import timezone
 from app.utils.file_exporter import (
     get_export_filename,
     export_to_csv,
@@ -206,6 +207,19 @@ def format_attendance_data(records):
             })
     return formatted
 
+def convert_utc_to_ist(utc_datetime):
+    """Convert UTC datetime to Indian Standard Time"""
+    if utc_datetime is None:
+        return None
+    utc_tz = timezone('UTC')
+    ist_tz = timezone('Asia/Kolkata')
+    
+    # If datetime is naive, assume it's UTC
+    if utc_datetime.tzinfo is None:
+        utc_datetime = utc_tz.localize(utc_datetime)
+    
+    return utc_datetime.astimezone(ist_tz)
+
 def get_attendance_export(db: Session, user: User, export_format: str, selected_date: date, export_all=False):
     if export_format not in ["csv", "excel", "pdf"]:
         raise HTTPException(status_code=400, detail="Invalid export format")
@@ -218,40 +232,75 @@ def get_attendance_export(db: Session, user: User, export_format: str, selected_
     else:
         users_data = db.query(User).options(
             joinedload(User.attendance_sessions)
-        ).all()
+        ).order_by(User.name.asc()).all()  # Order by name ascending
 
     # Prepare data for selected date
     export_data = []
-    for user in users_data:
+    
+    for user_obj in users_data:
+        # Filter sessions for the selected date and order by punch_in time (ascending)
         sessions = [
-            s for s in user.attendance_sessions
+            s for s in user_obj.attendance_sessions
             if s.date == selected_date
         ]
+        sessions.sort(key=lambda x: x.punch_in if x.punch_in else datetime.min)
 
         if sessions:
-            punch_ins = [s.punch_in for s in sessions]
-            punch_outs = [s.punch_out for s in sessions if s.punch_out]
-
-            first_punch_in = min(punch_ins) if punch_ins else None
-            last_punch_out = max(punch_outs) if punch_outs else None
-
-            total_duration = (
-                (last_punch_out - first_punch_in).total_seconds() / 3600
-                if first_punch_in and last_punch_out else 0
-            )
-
-            for s in sessions:
+            # Calculate total time worked
+            total_duration = sum(s.duration for s in sessions if s.duration) or 0
+            
+            # First entry with user details
+            first_session = sessions[0]
+            
+            # Convert UTC times to IST
+            punch_in_ist = convert_utc_to_ist(first_session.punch_in)
+            punch_out_ist = convert_utc_to_ist(first_session.punch_out) if first_session.punch_out else None
+            
+            punch_out_status = "In Progress" if not punch_out_ist else punch_out_ist.strftime('%H:%M:%S')
+            duration = round(first_session.duration, 2) if first_session.duration else 0
+            
+            export_data.append({
+                "Date": first_session.date.strftime('%Y-%m-%d'),
+                "Name": user_obj.name,
+                "Email": user_obj.email,
+                "Punch In": punch_in_ist.strftime('%H:%M:%S') if punch_in_ist else "N/A",
+                "Punch Out": punch_out_status,
+                "Duration (hours)": duration,
+                "Total Hours": round(total_duration, 2),
+                "is_first_entry": True  # Flag for formatting
+            })
+            
+            # Additional entries for multiple punch-ins/outs (merged rows)
+            for session in sessions[1:]:
+                # Convert UTC times to IST
+                punch_in_ist = convert_utc_to_ist(session.punch_in)
+                punch_out_ist = convert_utc_to_ist(session.punch_out) if session.punch_out else None
+                
+                punch_out_status = "In Progress" if not punch_out_ist else punch_out_ist.strftime('%H:%M:%S')
+                duration = round(session.duration, 2) if session.duration else 0
+                
                 export_data.append({
-                    "User ID": user.id,
-                    "Name": user.name,
-                    "Email": user.email,
-                    "Date": s.date.strftime('%Y-%m-%d'),
-                    "Punch In": s.punch_in.strftime('%Y-%m-%d %H:%M:%S'),
-                    "Punch Out": s.punch_out.strftime('%Y-%m-%d %H:%M:%S') if s.punch_out else "N/A",
-                    "Duration (hours)": round(s.duration, 2) if s.duration else 0,
-                    "Total Hours": round(total_duration, 2) if total_duration else 0,
-                    "First Punch In": first_punch_in.strftime('%Y-%m-%d %H:%M:%S') if first_punch_in else "N/A",
-                    "Last Punch Out": last_punch_out.strftime('%Y-%m-%d %H:%M:%S') if last_punch_out else "N/A"
+                    "Date": "",  # Empty for merged cells
+                    "Name": "",  # Empty for merged cells
+                    "Email": "",  # Empty for merged cells
+                    "Punch In": punch_in_ist.strftime('%H:%M:%S') if punch_in_ist else "N/A",
+                    "Punch Out": punch_out_status,
+                    "Duration (hours)": duration,
+                    "Total Hours": "",  # Empty for merged cells
+                    "is_first_entry": False
+                })
+        else:
+            # User with no attendance (only for export_all)
+            if export_all:
+                export_data.append({
+                    "Date": selected_date.strftime('%Y-%m-%d'),
+                    "Name": user_obj.name,
+                    "Email": user_obj.email,
+                    "Punch In": "Absent",
+                    "Punch Out": "Absent",
+                    "Duration (hours)": 0,
+                    "Total Hours": 0,
+                    "is_first_entry": True
                 })
 
     if not export_data:
@@ -266,5 +315,4 @@ def get_attendance_export(db: Session, user: User, export_format: str, selected_
     else:
         export_to_pdf(export_data, filename)
 
-    # File will be served from a static path
     return f"/{filename}"
